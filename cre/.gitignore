@@ -1,0 +1,4 @@
+*.env
+project.yaml
+secrets.yaml
+node_modules
