@@ -2,3 +2,5 @@
 project.yaml
 secrets.yaml
 node_modules
+tmp.js
+tmp.wasm
