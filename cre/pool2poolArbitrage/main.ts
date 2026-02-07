@@ -7,7 +7,8 @@ import {
 } from "@chainlink/cre-sdk";
 import type { Config } from "./types/config";
 import type { PoolState } from "./types/poolState";
-import { getPoolPrice } from "./lib/getPoolPrices";
+import { getPoolPrice } from "./lib/poolFunctions";
+import { getAssetMarketPrice } from "./lib/getMarketPrice";
 import { hookAddress, tokenAddress } from "./constants/contractAddresses";
 
 const initWorkflow = (config: Config) => {
@@ -17,23 +18,15 @@ const initWorkflow = (config: Config) => {
 };
 
 const onCronTrigger = (runtime: Runtime<Config>): PoolState => {
-  const { sqrtPriceX96, currentTick, currentLiquidity } = getPoolPrice(
+  const pool = getPoolPrice(
     runtime,
-    tokenAddress,
-    hookAddress,
-    3000,
-    60,
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    undefined,
+    500,
+    10,
   );
 
-  runtime.log(`sqrtPriceX96: ${sqrtPriceX96}`);
-  runtime.log(`currentTick: ${currentTick}`);
-  runtime.log(`currentLiquidity: ${currentLiquidity}`);
-
-  return {
-    sqrtPriceX96,
-    currentTick,
-    currentLiquidity,
-  };
+  return pool;
 };
 
 export async function main() {

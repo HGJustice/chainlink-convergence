@@ -1,10 +1,11 @@
 {
   "schedule": "*/30 * * * * *",
-  "apiUrl": "https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&ids=ethereum&names=Ethereum&symbols=eth",
+  "apiUrl": "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&precision=6",
   "evms": [
     {
-      "chainName": "ethereum-testnet-sepolia-base-1",
-      "stateViewAddress": "0x571291b572ed32ce6751a2cb2486ebee8defb9b4",
+      "chainName": "ethereum-mainnet-base-1",
+      "stateViewAddressMainnet": "0xa3c0c9b65bad0b08107aa264b0f3db444b867a71",
+      "stateViewAddressTestnet": "0x571291b572ed32ce6751a2cb2486ebee8defb9b4",
       "hookAddress": "0x71A2219F6869B69C33E2AF6b29C1619C139F8040",
       "tokenAddress": "0xCC04941338f101EF09623E3BE0e1d5545e3cab8a"
     }
