@@ -9,7 +9,7 @@ import {
 } from "@chainlink/cre-sdk";
 import type { Config } from "../types/config";
 
-export function getAssetMarketPrice(nodeRuntime: NodeRuntime<Config>): number {
+export function getETHMarketPrice(nodeRuntime: NodeRuntime<Config>): number {
   const httpClient = new HTTPClient();
 
   const req = {

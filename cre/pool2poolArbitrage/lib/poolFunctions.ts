@@ -98,6 +98,10 @@ export function getPoolPrice(
   };
 }
 
-// export function convertSqrtPriceX96(sqrtPriceX96: number): number {
+export function convertSqrtPriceX96(sqrtPriceX96: bigint): bigint {
+  const Q96 = 2n ** 96n;
 
-// }
+  const price = (sqrtPriceX96 * sqrtPriceX96) / (Q96 * Q96);
+
+  return price;
+}
