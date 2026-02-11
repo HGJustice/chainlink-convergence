@@ -1,6 +1,6 @@
 export type EvmConfig = {
   chainName: string;
-  stateViewAddress: string;
+  stateViewAddressTestnet: string;
   hookAddress: string;
   tokenAddress: string;
 };

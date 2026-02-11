@@ -1,6 +1,6 @@
 import {
   type Runtime,
-  LAST_FINALIZED_BLOCK_NUMBER,
+  LATEST_BLOCK_NUMBER,
   encodeCallMsg,
   bytesToHex,
 } from "@chainlink/cre-sdk";
@@ -16,17 +16,23 @@ import {
 import type { Config } from "../types/config";
 import type { PoolState } from "../types/poolState";
 import { getEvmClient } from "./utils/getEvmClient";
-import { ethAddress, stateViewAddress } from "../constants/contractAddresses";
+import {
+  ethAddress,
+  stateViewAddressTestnet,
+  stateViewAddressMainnet,
+} from "../constants/contractAddresses";
 import StateViewABI from "../contracts/abi/StateView.json";
+import QuoterABI from "../contracts/abi/Quoter.json";
 
-export function getPoolPrice(
+export function getPool(
   runtime: Runtime<Config>,
+  isTestnet: boolean,
   tokenAddress: string,
   hookAddress: string = "0x0000000000000000000000000000000000000000",
   fee: number,
   tickSpacing: number,
 ): PoolState {
-  const evmClient = getEvmClient(runtime);
+  const evmClient = getEvmClient(runtime, isTestnet);
 
   const poolId = keccak256(
     encodeAbiParameters(
@@ -40,7 +46,6 @@ export function getPoolPrice(
       ],
     ),
   );
-  runtime.log(`Calculated poolId: ${poolId}`);
 
   const slot0CallData = encodeFunctionData({
     abi: StateViewABI,
@@ -54,6 +59,10 @@ export function getPoolPrice(
     args: [poolId],
   });
 
+  const stateViewAddress = isTestnet
+    ? stateViewAddressTestnet
+    : stateViewAddressMainnet;
+
   const slot0Result = evmClient
     .callContract(runtime, {
       call: encodeCallMsg({
@@ -61,7 +70,7 @@ export function getPoolPrice(
         to: stateViewAddress,
         data: slot0CallData,
       }),
-      blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+      blockNumber: LATEST_BLOCK_NUMBER,
     })
     .result();
 
@@ -72,7 +81,7 @@ export function getPoolPrice(
         to: stateViewAddress,
         data: liquidityCallData,
       }),
-      blockNumber: LAST_FINALIZED_BLOCK_NUMBER,
+      blockNumber: LATEST_BLOCK_NUMBER,
     })
     .result();
 
@@ -98,10 +107,27 @@ export function getPoolPrice(
   };
 }
 
-export function convertSqrtPriceX96(sqrtPriceX96: bigint): bigint {
-  const Q96 = 2n ** 96n;
+export function convertSqrtPriceX96(
+  sqrtPriceX96: bigint,
+  token0Decimal: number,
+  token1Decimal: number,
+): bigint {
+  const priceX192 = sqrtPriceX96 * sqrtPriceX96;
+  const decimalAdjustment = 10n ** BigInt(token0Decimal - token1Decimal);
+  const PRECISION = 10n ** 18n;
 
-  const price = (sqrtPriceX96 * sqrtPriceX96) / (Q96 * Q96);
+  const numerator = priceX192 * decimalAdjustment * PRECISION;
+  const denominator = 2n ** 96n * 2n ** 96n;
 
-  return price;
+  return numerator / denominator;
+}
+
+export function getQuote(
+  runtime: Runtime<Config>,
+  isTestnet: boolean,
+  token1Address: string,
+): bigint {
+  const evmClient = getEvmClient(runtime, isTestnet);
+
+  return 10n;
 }
