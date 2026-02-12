@@ -5,9 +5,10 @@ import {
   type Runtime,
   consensusMedianAggregation,
 } from "@chainlink/cre-sdk";
+import { parseEther } from "viem";
 import type { Config } from "./types/config";
 import type { PoolState } from "./types/poolState";
-import { getPool, convertSqrtPriceX96 } from "./lib/poolFunctions";
+import { getPool, convertSqrtPriceX96, getQuote } from "./lib/poolFunctions";
 import { getETHMarketPrice } from "./lib/getETHMarketPrice";
 import { hookAddress, tokenAddress } from "./constants/contractAddresses";
 
@@ -17,19 +18,19 @@ const initWorkflow = (config: Config) => {
   return [handler(cron.trigger({ schedule: config.schedule }), onCronTrigger)];
 };
 
-const onCronTrigger = (runtime: Runtime<Config>): PoolState => {
-  const pool = getPool(
+const onCronTrigger = (runtime: Runtime<Config>): bigint => {
+  const result = getQuote(
     runtime,
     false,
     "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    500,
+    10,
     undefined,
-    3000,
-    60,
+    true,
+    parseEther(String(1)),
   );
-  const real = convertSqrtPriceX96(pool.sqrtPriceX96, 18, 6);
-  runtime.log(real.toString());
 
-  return pool;
+  return result;
 };
 
 export async function main() {

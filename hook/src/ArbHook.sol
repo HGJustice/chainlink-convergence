@@ -21,6 +21,7 @@ contract MyHook is BaseHook {
         bytes calldata hookData
     ) internal override returns (bytes4, int128) {
         // TODO: Implement __afterSwap
+        // have some sort of check here first, if its worth emitting an event for CRE to compute something
     }
 
     function _afterDonate(

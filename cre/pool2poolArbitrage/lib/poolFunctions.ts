@@ -15,11 +15,13 @@ import {
 } from "viem";
 import type { Config } from "../types/config";
 import type { PoolState } from "../types/poolState";
+import type { PoolKey } from "../types/poolKey";
 import { getEvmClient } from "./utils/getEvmClient";
 import {
   ethAddress,
   stateViewAddressTestnet,
   stateViewAddressMainnet,
+  quoterAddressMainnet,
 } from "../constants/contractAddresses";
 import StateViewABI from "../contracts/abi/StateView.json";
 import QuoterABI from "../contracts/abi/Quoter.json";
@@ -126,8 +128,64 @@ export function getQuote(
   runtime: Runtime<Config>,
   isTestnet: boolean,
   token1Address: string,
+  fees: number,
+  tickSpacing: number,
+  hooks: string = "0x0000000000000000000000000000000000000000",
+  zeroForOne: boolean,
+  exactAmount: bigint,
 ): bigint {
   const evmClient = getEvmClient(runtime, isTestnet);
 
-  return 10n;
+  const callData = encodeFunctionData({
+    abi: QuoterABI,
+    functionName: "quoteExactInputSingle",
+    args: [
+      {
+        poolKey: {
+          currency0: ethAddress,
+          currency1: token1Address,
+          fee: fees,
+          tickSpacing: tickSpacing,
+          hooks: hooks,
+        },
+        zeroForOne,
+        exactAmount,
+        hookData: "0x",
+      },
+    ],
+  });
+
+  const poolId = keccak256(
+    encodeAbiParameters(
+      parseAbiParameters("address, address, uint24, int24, address"),
+      [
+        getAddress(ethAddress),
+        getAddress(token1Address),
+        fees,
+        tickSpacing,
+        getAddress(hooks),
+      ],
+    ),
+  );
+
+  runtime.log(poolId);
+
+  const result = evmClient
+    .callContract(runtime, {
+      call: encodeCallMsg({
+        from: zeroAddress,
+        to: quoterAddressMainnet,
+        data: callData,
+      }),
+      blockNumber: LATEST_BLOCK_NUMBER,
+    })
+    .result();
+
+  const [amountOut] = decodeFunctionResult({
+    abi: QuoterABI,
+    functionName: "quoteExactInputSingle",
+    data: bytesToHex(result.data),
+  }) as [bigint, bigint];
+
+  return amountOut;
 }
