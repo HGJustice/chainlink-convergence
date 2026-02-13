@@ -155,21 +155,6 @@ export function getQuote(
     ],
   });
 
-  const poolId = keccak256(
-    encodeAbiParameters(
-      parseAbiParameters("address, address, uint24, int24, address"),
-      [
-        getAddress(ethAddress),
-        getAddress(token1Address),
-        fees,
-        tickSpacing,
-        getAddress(hooks),
-      ],
-    ),
-  );
-
-  runtime.log(poolId);
-
   const result = evmClient
     .callContract(runtime, {
       call: encodeCallMsg({

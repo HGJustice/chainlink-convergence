@@ -5,12 +5,9 @@ import {
   type Runtime,
   consensusMedianAggregation,
 } from "@chainlink/cre-sdk";
-import { parseEther } from "viem";
 import type { Config } from "./types/config";
-import type { PoolState } from "./types/poolState";
-import { getPool, convertSqrtPriceX96, getQuote } from "./lib/poolFunctions";
+import { calculateTradeProfit } from "./lib/arbitrageFunctions";
 import { getETHMarketPrice } from "./lib/getETHMarketPrice";
-import { hookAddress, tokenAddress } from "./constants/contractAddresses";
 
 const initWorkflow = (config: Config) => {
   const cron = new CronCapability();
@@ -18,17 +15,8 @@ const initWorkflow = (config: Config) => {
   return [handler(cron.trigger({ schedule: config.schedule }), onCronTrigger)];
 };
 
-const onCronTrigger = (runtime: Runtime<Config>): bigint => {
-  const result = getQuote(
-    runtime,
-    false,
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    500,
-    10,
-    undefined,
-    true,
-    parseEther(String(1)),
-  );
+const onCronTrigger = (runtime: Runtime<Config>): string => {
+  const result = calculateTradeProfit(runtime);
 
   return result;
 };
