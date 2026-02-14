@@ -59,7 +59,7 @@ export function calculateTradeProfit(
   runtime.log(profitSellHookPool.toString());
 
   if (profitBuyHookPool > PROFIT_THRESHOLD) {
-    runtime.log("buying from hook and selling at other hook");
+    runtime.log("buying from hook and selling at other pool");
     // if hook pool price deviates, and is above profitThreshold then, iniaitie hook smart contract function
     // where you buy from the hook, sell to other pool and donate profits back to hook pool
   }
