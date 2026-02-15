@@ -13,6 +13,7 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {TransientStateLibrary} from "@uniswap/v4-core/src/libraries/TransientStateLibrary.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
+import {SafeCallback} from "v4-periphery/src/base/SafeCallback.sol";
 
 contract ArbHook is BaseHook {
     using StateLibrary for IPoolManager;
@@ -36,7 +37,7 @@ contract ArbHook is BaseHook {
     error NotHookManagerAddress();
     error OnlyPoolManagerAccess();
 
-    event PoolPriceUpdated(uint160 newsSqrtPriceX96, int24 newCurrentTick);
+    event PoolPriceUpdated(uint160 newSqrtPriceX96, int24 newCurrentTick);
 
     function _afterSwap(
         address,
