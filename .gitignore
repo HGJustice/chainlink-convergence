@@ -5,3 +5,4 @@ node_modules
 tmp.js
 tmp.wasm
 .gitmodules
+.DS_Store

@@ -48,9 +48,11 @@ Tests mainly cover the ARBHook contract and involve the following:
 
 I would like to continue this project after the hackathon. I believe it has the potential to become a top pool within the Uniswap ecosystem, however it has a long way to go from MVP to mainnet.
 
-Currently the hook alongside CRE only monitors one other pool. In a production version, I would like it to monitor multiple pools to capture more arbitrage opportunities.
+Currently the hook alongside CRE only monitors one other pool. In a production version, I would like it to monitor multiple pools to capture more arbitrage opportunities, once that is done. I would like to start adding pools from Uniswap v3. Along side aribtrage stratagies for different token pairs not just ETH/USDC
 
 Another consideration is the handling of in-range vs out-of-range positions within concentrated liquidity. It isn't fair that LPs who are out of range to receive arbitrage profits when they aren't actively providing liquidity. Using CRE to monitor LP positions off-chain would be the ideal approach, since handling this logic within the hook itself is possible but would be gas intensive for users swapping through the pool.
+
+Building a live frontend for hook, so users can go in create pools and swap. Even maybe think of a mechanic to reward swapper who cause price to flucciaiate
 
 ## Links
 

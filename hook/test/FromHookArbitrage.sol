@@ -18,7 +18,7 @@ import {ArbHook} from "../src/ArbHook.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import "forge-std/console.sol";
 
-contract TestArbHook is Test, Deployers {
+contract FromHookArbitrage is Test, Deployers {
     MockERC20 token;
     Currency ethCurrency = Currency.wrap(address(0));
     Currency tokenCurrency;
@@ -35,8 +35,6 @@ contract TestArbHook is Test, Deployers {
         token.mint(address(this), 1000 ether);
         token.mint(address(1), 1000 ether);
         vm.deal(address(this), 1000 ether);
-        vm.deal(address(hook), 10 ether);
-        token.mint(address(hook), 1000e6);
 
         token.approve(address(swapRouter), type(uint256).max);
         token.approve(address(modifyLiquidityRouter), type(uint256).max);
@@ -48,28 +46,32 @@ contract TestArbHook is Test, Deployers {
             tokenCurrency,
             IHooks(address(0)),
             500,
-            SQRT_PRICE_1_1
+            TickMath.getSqrtPriceAtTick(10)
         );
 
-        address hookAddress = address(
-            uint160(Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_DONATE_FLAG)
-        );
+        address hookAddress = address(uint160(Hooks.AFTER_SWAP_FLAG));
         deployCodeTo(
             "ArbHook.sol",
             abi.encode(manager, address(this), otherPoolKey),
             address(hookAddress)
         );
-        hook = ArbHook(address(hookAddress));
+        hook = ArbHook(payable(address(hookAddress)));
+
+        vm.deal(address(hook), 10 ether);
+        token.mint(address(hook), 1000 ether);
+
+        vm.prank(address(hook));
+        token.approve(address(manager), type(uint256).max);
 
         (hookPoolKey, ) = initPool(
             ethCurrency,
             tokenCurrency,
             hook,
-            3000,
+            500,
             SQRT_PRICE_1_1
         );
 
-        uint160 sqrtPriceAtTickUpper = TickMath.getSqrtPriceAtTick(60);
+        uint160 sqrtPriceAtTickUpper = TickMath.getSqrtPriceAtTick(10);
         uint128 liquidityDelta = LiquidityAmounts.getLiquidityForAmount0(
             SQRT_PRICE_1_1,
             sqrtPriceAtTickUpper,
@@ -78,8 +80,8 @@ contract TestArbHook is Test, Deployers {
         modifyLiquidityRouter.modifyLiquidity{value: ethToAdd}(
             hookPoolKey,
             ModifyLiquidityParams({
-                tickLower: -60,
-                tickUpper: 60,
+                tickLower: -10,
+                tickUpper: 10,
                 liquidityDelta: int256(uint256(liquidityDelta)),
                 salt: bytes32(0)
             }),
@@ -123,13 +125,12 @@ contract TestArbHook is Test, Deployers {
         );
     }
 
-    function test_arbExecution() public {
-        // First push the hook pool price by doing a big swap
-        swapRouter.swap{value: 1 ether}(
+    function test_arbExecutionFromHook() public {
+        swapRouter.swap{value: 2 ether}(
             hookPoolKey,
             SwapParams({
                 zeroForOne: true,
-                amountSpecified: -1 ether,
+                amountSpecified: -2 ether,
                 sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
             }),
             PoolSwapTest.TestSettings({
@@ -139,15 +140,10 @@ contract TestArbHook is Test, Deployers {
             ""
         );
 
-        // Now there should be a price difference between the two pools
-        // Execute the arb
-        hook.swapHookPoolWithOtherPool(hookPoolKey, otherPoolKey, 0.1 ether);
+        hook.executeArbitrage(hookPoolKey, otherPoolKey, true, 0.5 ether);
 
-        // Check that profits were donated
-        uint256 ethProfit = hook.ethArbProfit();
         uint256 usdcProfit = hook.usdcArbProfit();
-        console.log("ETH profit:", ethProfit);
         console.log("USDC profit:", usdcProfit);
-        assertTrue(ethProfit > 0 || usdcProfit > 0, "No profit donated");
+        assertTrue(usdcProfit > 0);
     }
 }

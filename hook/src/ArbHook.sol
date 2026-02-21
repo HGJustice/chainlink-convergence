@@ -13,7 +13,6 @@ import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {TransientStateLibrary} from "@uniswap/v4-core/src/libraries/TransientStateLibrary.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
-import {SafeCallback} from "v4-periphery/src/base/SafeCallback.sol";
 
 contract ArbHook is BaseHook {
     using StateLibrary for IPoolManager;
@@ -54,121 +53,169 @@ contract ArbHook is BaseHook {
         return (this.afterSwap.selector, 0);
     }
 
-    function _afterDonate(
-        address,
-        PoolKey calldata,
-        uint256 amount0,
-        uint256 amount1,
-        bytes calldata
-    ) internal override returns (bytes4) {
-        ethArbProfit += amount0;
-        usdcArbProfit += amount1;
-
-        return this.afterDonate.selector;
-    }
-
-    function swapHookPoolWithOtherPool(
+    function executeArbitrage(
         PoolKey calldata hookKey,
         PoolKey calldata otherPoolKey,
+        bool fromHook,
         uint256 amount
     ) external {
         if (msg.sender != cre_address) {
             revert NotHookManagerAddress();
         }
-        bytes memory data = abi.encode(hookKey, otherPoolKey, amount);
+        bytes memory data = abi.encode(hookKey, otherPoolKey, fromHook, amount);
         poolManager.unlock(data);
     }
 
-    function _unlockCallback(
+    function unlockCallback(
         bytes calldata data
-    ) internal override returns (bytes memory) {
-        if (msg.sender != address(poolManager)) {
-            revert OnlyPoolManagerAccess();
-        }
-
+    ) external onlyPoolManager returns (bytes memory) {
         (
             PoolKey memory hookKey,
             PoolKey memory otherPoolKey,
+            bool fromHook,
             uint256 amount
-        ) = abi.decode(data, (PoolKey, PoolKey, uint256));
+        ) = abi.decode(data, (PoolKey, PoolKey, bool, uint256));
 
-        poolManager.swap(
-            otherPoolKey,
-            SwapParams({
-                zeroForOne: false,
-                amountSpecified: int256(amount),
-                sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
-            }),
-            ""
-        );
-
-        poolManager.swap(
-            hookKey,
-            SwapParams({
-                zeroForOne: true,
-                amountSpecified: -int256(amount),
-                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
-            }),
-            ""
-        );
-
-        int256 delta0 = poolManager.currencyDelta(
-            address(this),
-            hookKey.currency0
-        );
-        int256 delta1 = poolManager.currencyDelta(
-            address(this),
-            hookKey.currency1
-        );
-
-        uint256 donateAmount0 = delta0 > 0 ? uint256(delta0) : 0;
-        uint256 donateAmount1 = delta1 > 0 ? uint256(delta1) : 0;
-
-        poolManager.donate(hookKey, donateAmount0, donateAmount1, "");
-
-        int256 remainingDelta0 = poolManager.currencyDelta(
-            address(this),
-            hookKey.currency0
-        );
-        int256 remainingDelta1 = poolManager.currencyDelta(
-            address(this),
-            hookKey.currency1
-        );
-
-        if (remainingDelta0 < 0) {
-            hookKey.currency0.settle(
-                poolManager,
-                address(this),
-                uint256(-remainingDelta0),
-                false
+        if (fromHook) {
+            BalanceDelta swap1Delta = poolManager.swap(
+                hookKey,
+                SwapParams({
+                    zeroForOne: false,
+                    amountSpecified: -int256(amount),
+                    sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
+                }),
+                ""
             );
+
+            uint256 ethReceived = uint256(uint128(swap1Delta.amount0()));
+
+            poolManager.swap(
+                otherPoolKey,
+                SwapParams({
+                    zeroForOne: true,
+                    amountSpecified: -int256(ethReceived),
+                    sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+                }),
+                ""
+            );
+
+            int256 delta0 = poolManager.currencyDelta(
+                address(this),
+                hookKey.currency0
+            );
+            int256 delta1 = poolManager.currencyDelta(
+                address(this),
+                hookKey.currency1
+            );
+
+            (delta0, delta1) = _donateProfit(hookKey, delta0, delta1);
+
+            _settleTakeFees(hookKey, delta0, delta1);
         } else {
-            hookKey.currency0.take(
-                poolManager,
-                address(this),
-                uint256(remainingDelta0),
-                false
+            BalanceDelta swap1Delta = poolManager.swap(
+                otherPoolKey,
+                SwapParams({
+                    zeroForOne: false,
+                    amountSpecified: -int256(amount),
+                    sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
+                }),
+                ""
             );
-        }
 
-        if (remainingDelta1 < 0) {
-            hookKey.currency1.settle(
-                poolManager,
-                address(this),
-                uint256(-remainingDelta1),
-                false
+            uint256 ethReceived = uint256(uint128(swap1Delta.amount0()));
+
+            poolManager.swap(
+                hookKey,
+                SwapParams({
+                    zeroForOne: true,
+                    amountSpecified: -int256(ethReceived),
+                    sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+                }),
+                ""
             );
-        } else {
-            hookKey.currency1.take(
-                poolManager,
+
+            int256 delta0 = poolManager.currencyDelta(
                 address(this),
-                uint256(remainingDelta1),
-                false
+                hookKey.currency0
             );
+            int256 delta1 = poolManager.currencyDelta(
+                address(this),
+                hookKey.currency1
+            );
+
+            (delta0, delta1) = _donateProfit(hookKey, delta0, delta1);
+
+            _settleTakeFees(hookKey, delta0, delta1);
         }
 
         return "";
     }
+
+    function _donateProfit(
+        PoolKey memory hookKey,
+        int256 delta0,
+        int256 delta1
+    ) internal returns (int256, int256) {
+        uint256 donateAmount0 = delta0 > 0 ? uint256(delta0) : 0;
+        uint256 donateAmount1 = delta1 > 0 ? uint256(delta1) : 0;
+
+        if (donateAmount0 > 0 || donateAmount1 > 0) {
+            ethArbProfit += donateAmount0;
+            usdcArbProfit += donateAmount1;
+            poolManager.donate(hookKey, donateAmount0, donateAmount1, "");
+
+            delta0 = poolManager.currencyDelta(
+                address(this),
+                hookKey.currency0
+            );
+            delta1 = poolManager.currencyDelta(
+                address(this),
+                hookKey.currency1
+            );
+        }
+
+        return (delta0, delta1);
+    }
+
+    function _settleTakeFees(
+        PoolKey memory hookKey,
+        int256 delta0,
+        int256 delta1
+    ) internal {
+        if (delta0 < 0) {
+            hookKey.currency0.settle(
+                poolManager,
+                address(this),
+                uint256(-delta0),
+                false
+            );
+        } else if (delta0 > 0) {
+            hookKey.currency0.take(
+                poolManager,
+                address(this),
+                uint256(delta0),
+                false
+            );
+        }
+
+        if (delta1 < 0) {
+            hookKey.currency1.settle(
+                poolManager,
+                address(this),
+                uint256(-delta1),
+                false
+            );
+        } else if (delta1 > 0) {
+            hookKey.currency1.take(
+                poolManager,
+                address(this),
+                uint256(delta1),
+                false
+            );
+        }
+    }
+
+    receive() external payable {}
 
     function getHookPermissions()
         public
@@ -187,7 +234,7 @@ contract ArbHook is BaseHook {
                 beforeSwap: false,
                 afterSwap: true,
                 beforeDonate: false,
-                afterDonate: true,
+                afterDonate: false,
                 beforeSwapReturnDelta: false,
                 afterSwapReturnDelta: false,
                 afterAddLiquidityReturnDelta: false,
