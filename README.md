@@ -4,6 +4,24 @@
 
 Welcome to ArbHook, which is my submission project for the Chainlink Convergence hackathon 2026.
 
+## Links
+
+**Chainlink CRE Code:**
+
+- [Arbitrage Logic (lib folder)](./cre/pool2poolArbitrage/lib/)
+  - `calculateTradeProfit.ts` - Arbitrage detection and decision-making
+  - `getETHMarketPrice.ts` - External API integration (ETH/USDC Spot Price / CoinGecko)
+  - `poolFunctions.ts` - Uniswap V4 pool price and state fetching
+
+**Hook Contract:**
+
+- [ArbHook.sol](./hook/src/ArbHook.sol)
+- [ArbHook Tests](./hook/test/)
+
+Submission Demo:
+
+Presentation Slides: https://www.canva.com/design/DAHCDj7jpXM/v6yyKpWV2czkFv5Gh_g_sA/edit?utm_content=DAHCDj7jpXM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
 ## Problems being solved
 
 Firstly I would like to mention two problems that I noticed that this combination of Uniswap v4 hooks and Chainlink CRE solves:
@@ -28,7 +46,7 @@ The ARB Hook and Chainlink CRE work together. The CRE listens to every afterSwap
 
     - If above, executes the trade.
 
-Once CRE determines which pool to buy from and which to sell into, it writes to the hook contract `executeArbitrage()` function with the amount and direction of the trade. Inside the function the contract calls `poolManager.unlock(data)`, which triggers the `_unlockCallback` function. Inside this callback, the contract swaps on both pools, takes the profit, and donates it back to the hook pool's LPs in a single atomic transaction thanks to Uniswap V4's flash accounting.
+Once CRE determines which pool to buy from and which to sell into, it writes to the hook contract `executeArbitrage()` function with the amount and direction of the trade. Inside the function the contract calls `poolManager.unlock(data)`, which triggers the `unlockCallback` function. Inside this callback, the contract swaps on both pools, takes the profit, and donates it back to the hook pool's LPs in a single atomic transaction thanks to Uniswap V4's flash accounting.
 
 ## Architecture Diagram
 
@@ -38,24 +56,18 @@ Once CRE determines which pool to buy from and which to sell into, it writes to 
 
 Tests mainly cover the ARBHook contract and involve the following:
 
-    - Testing the afterSwap function, ensuring the event is emitted with the correct pool state values.
+1. Testing the `afterSwap` function, ensuring the event is emitted with the correct pool state values.
 
-    - Testing the afterDonate function, which is triggered when CRE performs the arbitrage and donates profit back to the hook pool. This verifies that all bookkeeping in the state variables is recorded correctly.
+2. Testing the `executeArbitrage` function inside the `FromHookArbitrage.t.sol` file, where the direction of the trade is buying from the hook pool and selling at the other pool. The test simulates two pools at different prices where the hook pool gets dumped on, creating cheap enough ETH to simulate profitable arbitrage.
 
-    - Testing the executeArbitrage function, when the price diverges from the hook pool, this function performs the arbitrage and donate back to pool. This test verifies trade has been successful alongside the donate bookeeping after.
+3. Testing the `executeArbitrage` function inside the `FromOtherPoolArbitrage.t.sol` file, where the direction of the trade is buying from the other pool and selling at our hook pool. The test dumps the other pool's price just before the trade to simulate profitable arbitrage.
 
 ## Future Roadmap
 
 I would like to continue this project after the hackathon. I believe it has the potential to become a top pool within the Uniswap ecosystem, however it has a long way to go from MVP to mainnet.
 
-Currently the hook alongside CRE only monitors one other pool. In a production version, I would like it to monitor multiple pools to capture more arbitrage opportunities, once that is done. I would like to start adding pools from Uniswap v3. Along side aribtrage stratagies for different token pairs not just ETH/USDC
+Currently the hook alongside CRE only monitors one other pool. In a production version, I would like it to monitor multiple pools to capture more arbitrage opportunities, once that is done. I would like to start adding pools from Uniswap v3. Along side arbitrage strategies for different token pairs not just ETH/USDC
 
-Another consideration is the handling of in-range vs out-of-range positions within concentrated liquidity. It isn't fair that LPs who are out of range to receive arbitrage profits when they aren't actively providing liquidity. Using CRE to monitor LP positions off-chain would be the ideal approach, since handling this logic within the hook itself is possible but would be gas intensive for users swapping through the pool.
+Another consideration is the handling of in-range vs out-of-range positions within concentrated liquidity. It isn't fair that LPs who are out-of-range to receive arbitrage profits when they aren't actively providing liquidity. Using CRE to monitor LP positions off-chain would be the ideal approach, since handling this logic within the hook itself is possible but would be gas intensive for users swapping through the pool.
 
-Building a live frontend for hook, so users can go in create pools and swap. Even maybe think of a mechanic to reward swapper who cause price to flucciaiate
-
-## Links
-
-1. Presentation Slides:
-
-2. Submission Demo:
+Building a live frontend for this dex/hook, so users can go in create pools and swap. Even maybe think of a mechanic to reward swappers who cause price to fluctuate so the arbitrage trade can happen. So the whole eco-system is rewarded for participating.
