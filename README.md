@@ -12,6 +12,7 @@ Welcome to ArbHook, which is my submission project for the Chainlink Convergence
   - `calculateTradeProfit.ts` - Arbitrage detection and decision-making
   - `getETHMarketPrice.ts` - External API integration (ETH/USDC Spot Price / CoinGecko)
   - `poolFunctions.ts` - Uniswap V4 pool price and state fetching
+  - [`main.ts`](./cre/pool2poolArbitrage/main.ts) - Workflow entry point and cron trigger setup
 
 **Hook Contract:**
 
