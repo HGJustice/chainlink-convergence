@@ -8,11 +8,12 @@ Welcome to ArbHook, which is my submission project for the Chainlink Convergence
 
 **Chainlink CRE Code:**
 
+[`main.ts`](./cre/pool2poolArbitrage/main.ts) - Workflow entry point and cron trigger setup
+
 - [Arbitrage Logic (lib folder)](./cre/pool2poolArbitrage/lib/)
   - `calculateTradeProfit.ts` - Arbitrage detection and decision-making
   - `getETHMarketPrice.ts` - External API integration (ETH/USDC Spot Price / CoinGecko)
   - `poolFunctions.ts` - Uniswap V4 pool price and state fetching
-  - [`main.ts`](./cre/pool2poolArbitrage/main.ts) - Workflow entry point and cron trigger setup
 
 **Hook Contract:**
 
@@ -27,7 +28,7 @@ Presentation Slides: https://www.canva.com/design/DAHCDj7jpXM/v6yyKpWV2czkFv5Gh_
 
 Firstly I would like to mention two problems that I noticed that this combination of Uniswap v4 hooks and Chainlink CRE solves:
 
-1. Liquidity providers suffer from impermanent loss when the price of assets in their pool diverges from the market price outside the AMM. This is one of the biggest deterrents for both power users and new investors when it comes to providing liquidity, which in turn limits the potential TVL of a pool. The natural remedy for this price divergence is arbitrage — bots monitor multiple pools and profit from the discrepancies between them. However, that profit is extracted directly from our liquidity providers.
+1. Liquidity providers suffer from impermanent loss when the price of assets in their pool diverges from the market price outside the AMM. This is one of the biggest deterrents for both power users and new investors when it comes to providing liquidity, which in turn limits the potential TVL of a pool. The natural remedy for this price divergence is arbitrage — bots monitor multiple pools, profit from the discrepancies between them, and in doing so, rebalance the pool's price back to market rates. While this fixes the price divergence and stops further impermanent loss from accumulating, the arbitrage profit itself is extracted directly from our liquidity providers.
 
 2. Most pools compete for liquidity to increase their TVL, while never giving anything of value except basic swap fees, and liquidity providers are being increasingly more selective about where they deploy capital.
 
