@@ -33,7 +33,6 @@ contract FromHookArbitrage is Test, Deployers {
         tokenCurrency = Currency.wrap(address(token));
 
         token.mint(address(this), 1000 ether);
-        token.mint(address(1), 1000 ether);
         vm.deal(address(this), 1000 ether);
 
         token.approve(address(swapRouter), type(uint256).max);
@@ -108,7 +107,7 @@ contract FromHookArbitrage is Test, Deployers {
 
     function test_afterSwapEvent() public {
         vm.expectEmit(true, true, false, false);
-        emit ArbHook.PoolPriceUpdated(0, 0);
+        emit ArbHook.PriceDivergenceDetected();
 
         swapRouter.swap{value: 0.5 ether}(
             hookPoolKey,
@@ -140,7 +139,7 @@ contract FromHookArbitrage is Test, Deployers {
             ""
         );
 
-        hook.executeArbitrage(hookPoolKey, otherPoolKey, true, 0.5 ether);
+        hook.executeArbitrage(hookPoolKey, true, 0.5 ether);
 
         uint256 usdcProfit = hook.usdcArbProfit();
         console.log("USDC profit:", usdcProfit);

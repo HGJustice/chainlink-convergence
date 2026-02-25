@@ -32,9 +32,9 @@ contract FromOtherPoolArbitrage is Test, Deployers {
         token = new MockERC20("USDC", "USDC", 6);
         tokenCurrency = Currency.wrap(address(token));
 
-        token.mint(address(this), 1000 ether);
-        token.mint(address(1), 1000 ether);
-        vm.deal(address(this), 1000 ether);
+        token.mint(address(this), 500 ether);
+        token.mint(address(1), 500 ether);
+        vm.deal(address(this), 500 ether);
 
         token.approve(address(swapRouter), type(uint256).max);
         token.approve(address(modifyLiquidityRouter), type(uint256).max);
@@ -121,7 +121,7 @@ contract FromOtherPoolArbitrage is Test, Deployers {
             ""
         );
 
-        hook.executeArbitrage(hookPoolKey, otherPoolKey, false, 0.5 ether);
+        hook.executeArbitrage(hookPoolKey, false, 0.5 ether);
 
         uint256 usdcProfit = hook.usdcArbProfit();
         console.log("USDC profit:", usdcProfit);

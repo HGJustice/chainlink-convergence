@@ -19,10 +19,17 @@ contract ArbHook is BaseHook {
     using TransientStateLibrary for IPoolManager;
     using CurrencySettler for Currency;
 
+    int24 public constant MIN_TICK_DIVERGENCE = 10;
+
     uint256 public ethArbProfit = 0;
     uint256 public usdcArbProfit = 0;
     address public cre_address;
     PoolKey public otherV4Pool;
+
+    error NotHookManagerAddress();
+    error OnlyPoolManagerAccess();
+
+    event PriceDivergenceDetected();
 
     constructor(
         IPoolManager _poolManager,
@@ -33,11 +40,6 @@ contract ArbHook is BaseHook {
         otherV4Pool = _otherV4Pool;
     }
 
-    error NotHookManagerAddress();
-    error OnlyPoolManagerAccess();
-
-    event PoolPriceUpdated(uint160 newSqrtPriceX96, int24 newCurrentTick);
-
     function _afterSwap(
         address,
         PoolKey calldata key,
@@ -45,36 +47,42 @@ contract ArbHook is BaseHook {
         BalanceDelta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
-        (uint160 sqrtPriceX96, int24 currentTick, , ) = poolManager.getSlot0(
-            key.toId()
+        (, int24 currentTickHook, , ) = poolManager.getSlot0(key.toId());
+
+        (, int24 currentTickHookOtherPool, , ) = poolManager.getSlot0(
+            otherV4Pool.toId()
         );
-        emit PoolPriceUpdated(sqrtPriceX96, currentTick);
+
+        int24 tickDivergence = currentTickHook > currentTickHookOtherPool
+            ? currentTickHook - currentTickHookOtherPool
+            : currentTickHookOtherPool - currentTickHook;
+
+        if (tickDivergence >= MIN_TICK_DIVERGENCE) {
+            emit PriceDivergenceDetected();
+        }
 
         return (this.afterSwap.selector, 0);
     }
 
     function executeArbitrage(
         PoolKey calldata hookKey,
-        PoolKey calldata otherPoolKey,
         bool fromHook,
         uint256 amount
     ) external {
         if (msg.sender != cre_address) {
             revert NotHookManagerAddress();
         }
-        bytes memory data = abi.encode(hookKey, otherPoolKey, fromHook, amount);
+        bytes memory data = abi.encode(hookKey, fromHook, amount);
         poolManager.unlock(data);
     }
 
     function unlockCallback(
         bytes calldata data
     ) external onlyPoolManager returns (bytes memory) {
-        (
-            PoolKey memory hookKey,
-            PoolKey memory otherPoolKey,
-            bool fromHook,
-            uint256 amount
-        ) = abi.decode(data, (PoolKey, PoolKey, bool, uint256));
+        (PoolKey memory hookKey, bool fromHook, uint256 amount) = abi.decode(
+            data,
+            (PoolKey, bool, uint256)
+        );
 
         if (fromHook) {
             BalanceDelta swap1Delta = poolManager.swap(
@@ -90,7 +98,7 @@ contract ArbHook is BaseHook {
             uint256 ethReceived = uint256(uint128(swap1Delta.amount0()));
 
             poolManager.swap(
-                otherPoolKey,
+                otherV4Pool,
                 SwapParams({
                     zeroForOne: true,
                     amountSpecified: -int256(ethReceived),
@@ -113,7 +121,7 @@ contract ArbHook is BaseHook {
             _settleTakeFees(hookKey, delta0, delta1);
         } else {
             BalanceDelta swap1Delta = poolManager.swap(
-                otherPoolKey,
+                otherV4Pool,
                 SwapParams({
                     zeroForOne: false,
                     amountSpecified: -int256(amount),
