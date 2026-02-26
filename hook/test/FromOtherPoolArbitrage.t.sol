@@ -33,7 +33,6 @@ contract FromOtherPoolArbitrage is Test, Deployers {
         tokenCurrency = Currency.wrap(address(token));
 
         token.mint(address(this), 500 ether);
-        token.mint(address(1), 500 ether);
         vm.deal(address(this), 500 ether);
 
         token.approve(address(swapRouter), type(uint256).max);

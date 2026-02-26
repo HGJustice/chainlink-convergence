@@ -27,7 +27,6 @@ contract ArbHook is BaseHook {
     PoolKey public otherV4Pool;
 
     error NotHookManagerAddress();
-    error OnlyPoolManagerAccess();
 
     event PriceDivergenceDetected();
 
