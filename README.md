@@ -8,19 +8,22 @@ Welcome to ArbHook, which is my submission project for the Chainlink Convergence
 
 **Chainlink CRE Code:**
 
-[`main.ts`](./cre/pool2poolArbitrage/main.ts) - Workflow entry point and cron trigger setup
+[`main.ts`](./cre/pool2poolArbitrage/main.ts) - Workflow entry point
 
-- [Arbitrage Logic (lib folder)](./cre/pool2poolArbitrage/lib/)
+[`config.staging.json`](./cre/pool2poolArbitrage/config.staging.json) - Parameters for ARBHook workflows
+
+[Arbitrage Logic (lib folder)](./cre/pool2poolArbitrage/lib/) - Main CRE logic folder
+
 - `calculateTradeProfit.ts` - Arbitrage detection and decision-making
 - `getETHMarketPrice.ts` - External API integration (ETH/USDC Spot Price / CoinGecko)
 - `poolFunctions.ts` - Uniswap V4 pool price and state fetching
 
 **Hook Contract:**
 
-- [ArbHook.sol](./hook/src/ArbHook.sol)
-- [ArbHook Tests](./hook/test/)
+[ArbHook.sol](./hook/src/ArbHook.sol)
+[ArbHook Tests](./hook/test/)
 
-Submission Demo:
+Submission Video: https://youtu.be/nOPCCC-IB40
 
 Presentation Slides: https://www.canva.com/design/DAHCDj7jpXM/v6yyKpWV2czkFv5Gh_g_sA/edit?utm_content=DAHCDj7jpXM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 
@@ -66,7 +69,7 @@ Tests mainly cover the ARBHook contract and involve the following:
 
 ## Future Roadmap
 
-I would like to continue this project after the hackathon. I believe it has the potential to become a top pool within the Uniswap ecosystem, however it has a long way to go from MVP to mainnet.
+I would like to continue this project after the hackathon. I believe it has the potential to become a top pool within the Uniswap ecosystem, however it has a long way to go from MVP to mainnet:
 
 Currently the hook alongside CRE only monitors one other pool. In a production version, I would like it to monitor multiple pools to capture more arbitrage opportunities, once that is done. I would like to start adding pools from Uniswap v3. Along side arbitrage strategies for different token pairs not just ETH/USDC
 

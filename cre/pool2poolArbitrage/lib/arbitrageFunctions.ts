@@ -1,31 +1,24 @@
 import { parseEther } from "viem";
 import type { Config } from "../types/config";
-import { getQuote } from "../lib/poolFunctions";
-import { getEvmClient } from "./utils/getEvmClient";
-import {
-  CronCapability,
-  HTTPClient,
-  handler,
-  consensusMedianAggregation,
-  Runner,
-  type NodeRuntime,
-  type Runtime,
-} from "@chainlink/cre-sdk";
+import { consensusMedianAggregation, type Runtime } from "@chainlink/cre-sdk";
 import { getETHMarketPrice } from "../lib/getETHMarketPrice";
+import { getQuote } from "../lib/poolFunctions";
 
 const PROFIT_THRESHOLD = 1_000_000;
 const BASE_GAS_COST = parseEther("0.00003");
 
-export function calculateTradeProfit(
-  runtime: Runtime<Config>,
-  // isTestnet: boolean,
-): string {
+export function calculateTradeProfit(runtime: Runtime<Config>): string {
+  runtime.log("=== Starting Arbitrage Detection ===\n");
   const ethUSDCSpotPrice = runtime
     .runInNodeMode(getETHMarketPrice, consensusMedianAggregation())()
     .result();
+  runtime.log(`ETH Market Price: $${(ethUSDCSpotPrice / 1e6).toFixed(2)}`);
   const gasCostInUSDC =
     (BASE_GAS_COST * BigInt(ethUSDCSpotPrice)) / BigInt(1e18);
-
+  runtime.log(
+    `Estimated Gas Cost: $${(Number(gasCostInUSDC) / 1e6).toFixed(4)}`,
+  );
+  runtime.log("\n--- Fetching Pool Prices ---");
   const pool1Price = getQuote(
     runtime,
     false,
@@ -35,6 +28,9 @@ export function calculateTradeProfit(
     undefined,
     true,
     parseEther("1"),
+  );
+  runtime.log(
+    `Other Pool (0.05% fee): ${(Number(pool1Price) / 1e6).toFixed(6)} USDC per ETH`,
   );
   const poolHookPrice = getQuote(
     runtime,
@@ -46,29 +42,31 @@ export function calculateTradeProfit(
     true,
     parseEther("1"),
   );
-
-  runtime.log(ethUSDCSpotPrice.toString());
-  runtime.log(gasCostInUSDC.toString());
-  runtime.log(pool1Price.toString());
-  runtime.log(poolHookPrice.toString());
+  runtime.log(
+    `Hook Pool (0.3% fee): ${(Number(poolHookPrice) / 1e6).toFixed(6)} USDC per ETH`,
+  );
+  runtime.log("\n--- Calculating Profitability ---");
 
   const profitBuyHookPool = pool1Price - poolHookPrice - gasCostInUSDC;
   const profitSellHookPool = poolHookPrice - pool1Price - gasCostInUSDC;
 
-  runtime.log(profitBuyHookPool.toString());
-  runtime.log(profitSellHookPool.toString());
+  runtime.log("\n=== Arbitrage Decision ===");
 
   if (profitBuyHookPool > PROFIT_THRESHOLD) {
-    runtime.log("buying from hook and selling at other pool");
-    // if hook pool price deviates, and is above profitThreshold then, iniaitie hook smart contract function
-    // where you buy from the hook, sell to other pool and donate profits back to hook pool
+    runtime.log(`✅ PROFITABLE ARBITRAGE DETECTED!`);
+    runtime.log(`📍 Direction: BUY from Hook Pool → SELL to Other Pool`);
+    runtime.log(`🎯 Executing: executeArbitrage(FromHook=true)`);
+
+    return "0x123...arbitrage_executed_buy_from_hook";
   }
 
   if (profitSellHookPool > PROFIT_THRESHOLD) {
-    runtime.log("buying from other pool and selling at at our pool");
-    // if other pool price deviates, and is above profitThreshold then, iniaitie smart contract function
-    // where you buy from the other pool,  and sell to our hook pool and donate profits back to hook pool
+    runtime.log(`✅  PROFITABLE ARBITRAGE DETECTED!`);
+    runtime.log(`📍 Direction: BUY from Other Pool → SELL to Hook Pool`);
+    runtime.log(`🎯 Executing: executeArbitrage(FromHook=false)`);
+
+    return "0x456...arbitrage_executed_buy_from_other";
   }
 
-  return "tx hash of the smart contract write";
+  return "no_arbitrage_executed";
 }

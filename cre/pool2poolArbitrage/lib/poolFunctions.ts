@@ -15,7 +15,6 @@ import {
 } from "viem";
 import type { Config } from "../types/config";
 import type { PoolState } from "../types/poolState";
-import type { PoolKey } from "../types/poolKey";
 import { getEvmClient } from "./utils/getEvmClient";
 import {
   ethAddress,
