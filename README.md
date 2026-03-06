@@ -20,8 +20,8 @@ Welcome to ArbHook, which is my submission project for the Chainlink Convergence
 
 **Hook Contract:**
 
-[ArbHook.sol](./hook/src/ArbHook.sol)
-[ArbHook Tests](./hook/test/)
+- [ArbHook.sol](./hook/src/ArbHook.sol)
+- [ArbHook Tests](./hook/test/)
 
 Submission Video: https://youtu.be/nOPCCC-IB40
 
